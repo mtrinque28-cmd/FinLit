@@ -128,20 +128,20 @@ function renderContent() {
   state.activeUnitId = unit.id;
 
   renderUnitBanner(unit);
-  renderLessonPath(unit);
+  renderLessonChart(unit);
 }
 
 function renderUnitBanner(unit) {
   const el = document.getElementById("unitBanner");
   const p = unitProgress(unit);
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-  el.style.background = unit.color;
+  el.style.setProperty("--unit-accent", unit.color);
   el.innerHTML = `
     <div class="banner-left">
       <div class="banner-icon">${unit.icon}</div>
       <div>
-        <h2>Unit · ${unit.title}</h2>
-        <div class="banner-sub">${unit.subtitle}</div>
+        <h2>${escapeHtml(unit.title)}</h2>
+        <div class="banner-sub">${escapeHtml(unit.subtitle || "")}</div>
       </div>
     </div>
     <div class="banner-progress">
@@ -151,71 +151,216 @@ function renderUnitBanner(unit) {
   `;
 }
 
-function renderLessonPath(unit) {
-  const container = document.getElementById("pathContainer");
-  const parts = [];
+/* --------------------------------------------------------------------------
+   Line-chart lesson path
+   -------------------------------------------------------------------------- */
 
+function renderLessonChart(unit) {
+  const container = document.getElementById("pathContainer");
+
+  // Flatten sections into a single ordered lesson stream, keeping section info.
+  const stream = [];
   unit.sections.forEach((section, sIdx) => {
-    if (section.title) {
-      parts.push(`
-        <div class="section-title-row">
-          <div class="line"></div>
-          <div class="label">${section.title}</div>
-          <div class="line"></div>
-        </div>
-      `);
-    }
-    parts.push(`<div class="lesson-path">`);
-    section.lessons.forEach((lesson, i) => {
-      const offset = zigzagOffset(i, section.lessons.length);
-      const unlocked = isLessonUnlocked(lesson.id);
-      const done = isLessonCompleted(lesson.id);
-      let cls = "";
-      let styleColor = unit.color;
-      let styleColorDk = shade(unit.color, -18);
-      if (done) {
-        cls = "done";
-      } else if (unlocked) {
-        // is it the *current* one (first unlocked, uncompleted)?
-        if (isCurrent(lesson.id)) cls = "current";
-      } else {
-        cls = "locked";
-        styleColor = "";
-        styleColorDk = "";
-      }
-      const label = escapeHtml(lesson.title);
-      const emoji = done ? "✔" : (unlocked ? lesson.icon : "🔒");
-      const style = unlocked && !done ? `--node-color:${styleColor};--node-color-dk:${styleColorDk};` : "";
-      parts.push(`
-        <div class="lesson-row" data-offset="${offset}">
-          <div class="lesson-node-wrap ${unlocked ? "" : "is-locked"}" style="position:relative">
-            ${isCurrent(lesson.id) && !done ? `<div class="start-bubble">START</div>` : ""}
-            <button class="lesson-node ${cls}" data-lesson="${lesson.id}" ${unlocked ? "" : "disabled"} style="${style}">
-              ${emoji}
-            </button>
-            <div class="lesson-label">
-              ${label}
-              <span class="reward">+$${lesson.reward.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      `);
+    section.lessons.forEach((lesson) => {
+      stream.push({ lesson, section, sIdx });
     });
-    parts.push(`</div>`);
   });
 
-  const p = unitProgress(unit);
-  if (p.done === p.total) {
-    parts.push(`
-      <div class="unit-complete-card">
-        <h3>🏆 Unit Complete!</h3>
-        <p>You've mastered ${unit.title}. Onward and upward.</p>
-      </div>
-    `);
+  const N = stream.length;
+  const totalReward = stream.reduce((s, x) => s + x.lesson.reward, 0);
+
+  // Cumulative reward at each lesson index (1-based inclusive).
+  let cum = 0;
+  const points = stream.map((s, i) => {
+    cum += s.lesson.reward;
+    return { ...s, index: i, cum };
+  });
+
+  // Chart geometry
+  const padL = 66;
+  const padR = 40;
+  const padT = 56;
+  const padB = 92;
+  const containerW = (container.parentElement || container).clientWidth || 700;
+  const desiredSpacing = 130;
+  const naturalW = padL + padR + Math.max(1, N - 1) * desiredSpacing;
+  const width = Math.max(containerW - 48, naturalW, 620);
+  const height = 460;
+  const chartW = width - padL - padR;
+  const chartH = height - padT - padB;
+
+  function xAt(i) {
+    if (N <= 1) return padL + chartW / 2;
+    return padL + (chartW * i) / (N - 1);
+  }
+  function yAt(v) {
+    if (totalReward <= 0) return padT + chartH;
+    return padT + chartH - (v / totalReward) * chartH;
   }
 
-  container.innerHTML = parts.join("");
-  container.querySelectorAll(".lesson-node").forEach(btn => {
+  // Y ticks
+  const yTicks = [0, 0.25, 0.5, 0.75, 1];
+
+  // Section divider Xs (before each section except the first)
+  const sectionMarkers = [];
+  {
+    let acc = 0;
+    unit.sections.forEach((section, sIdx) => {
+      const startIdx = acc;
+      acc += section.lessons.length;
+      const endIdx = acc - 1;
+      if (section.lessons.length === 0) return;
+      const midX = (xAt(startIdx) + xAt(endIdx)) / 2;
+      sectionMarkers.push({
+        sIdx,
+        title: section.title,
+        startX: xAt(startIdx),
+        endX: xAt(endIdx),
+        midX,
+        dividerX: sIdx === 0 ? null : xAt(startIdx) - desiredSpacing / 2,
+      });
+    });
+  }
+
+  // Line path (starts at bottom-left origin -> each cumulative point)
+  const originX = xAt(0) - Math.min(60, chartW * 0.08);
+  const originY = padT + chartH;
+  const pathCommands = [`M ${originX} ${originY}`];
+  points.forEach((p) => {
+    pathCommands.push(`L ${xAt(p.index)} ${yAt(p.cum)}`);
+  });
+  const linePath = pathCommands.join(" ");
+  const areaPath =
+    linePath +
+    ` L ${xAt(N - 1)} ${originY}` +
+    ` L ${originX} ${originY} Z`;
+
+  // Also compute how much of the line is "completed"
+  const doneCount = points.filter((p) => isLessonCompleted(p.lesson.id)).length;
+  // Path up to and including the last completed lesson
+  let doneLinePath = "";
+  if (doneCount > 0) {
+    const cmds = [`M ${originX} ${originY}`];
+    for (let i = 0; i < doneCount; i++) {
+      cmds.push(`L ${xAt(points[i].index)} ${yAt(points[i].cum)}`);
+    }
+    doneLinePath = cmds.join(" ");
+  }
+
+  // Build SVG
+  const yTicksSvg = yTicks
+    .map((t) => {
+      const val = t * totalReward;
+      const y = yAt(val);
+      return `
+        <line class="grid-line" x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}"/>
+        <text class="axis-label" x="${padL - 10}" y="${y + 4}" text-anchor="end">$${nice(val)}</text>
+      `;
+    })
+    .join("");
+
+  const sectionsSvg = sectionMarkers
+    .map((m) => {
+      const parts = [];
+      if (m.dividerX != null) {
+        parts.push(`<line class="section-divider" x1="${m.dividerX}" y1="${padT - 10}" x2="${m.dividerX}" y2="${padT + chartH}"/>`);
+      }
+      if (m.title) {
+        parts.push(`<text class="section-label" x="${m.midX}" y="${padT - 22}" text-anchor="middle">${escapeHtml(m.title)}</text>`);
+      }
+      return parts.join("");
+    })
+    .join("");
+
+  const svg = `
+    <svg class="chart-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"  stop-color="#22c55e" stop-opacity="0.35"/>
+          <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"  stop-color="#22c55e"/>
+          <stop offset="100%" stop-color="#facc15"/>
+        </linearGradient>
+        <linearGradient id="doneLineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"  stop-color="#22c55e"/>
+          <stop offset="100%" stop-color="#4ade80"/>
+        </linearGradient>
+      </defs>
+
+      ${yTicksSvg}
+      ${sectionsSvg}
+
+      <!-- projected (dim) area + line -->
+      <path d="${areaPath}" fill="url(#areaGrad)" opacity="0.35"/>
+      <path d="${linePath}" fill="none" stroke="url(#lineGrad)" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/>
+
+      <!-- earned solid line (up to last completed) -->
+      ${
+        doneLinePath
+          ? `<path d="${doneLinePath}" fill="none" stroke="url(#doneLineGrad)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" style="filter: drop-shadow(0 0 12px rgba(34,197,94,0.5))"/>`
+          : ""
+      }
+    </svg>
+  `;
+
+  // Overlay: nodes + labels
+  const nodesHtml = points
+    .map((p) => {
+      const done = isLessonCompleted(p.lesson.id);
+      const unlocked = isLessonUnlocked(p.lesson.id);
+      const current = !done && unlocked && isCurrent(p.lesson.id);
+      let cls = "locked";
+      if (done) cls = "done";
+      else if (current) cls = "current";
+      else if (unlocked) cls = "unlocked";
+
+      const x = xAt(p.index);
+      const y = yAt(p.cum);
+      const labelY = padT + chartH + 24;
+      const cumChip = `<div class="chart-cum ${done ? "done" : ""}" style="left:${x}px;top:${y - 22}px">$${nice(p.cum)}</div>`;
+      const startBubble = current ? `<div class="start-bubble">START</div>` : "";
+
+      const icon = done ? "" : unlocked ? escapeHtml(p.lesson.icon || "•") : "🔒";
+      return `
+        ${cumChip}
+        <button class="chart-node ${cls}" data-lesson="${p.lesson.id}" style="left:${x}px;top:${y}px;--unit-accent:${p.section && p.section.title ? getUnitAccent() : getUnitAccent()}">
+          ${startBubble}
+          <div class="chart-dot"><span>${icon}</span></div>
+        </button>
+        <div class="chart-label ${cls}" style="left:${x}px;top:${labelY}px">
+          <div class="l-title">${escapeHtml(p.lesson.title)}</div>
+          <div class="l-reward">+$${p.lesson.reward.toLocaleString()}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const p = unitProgress(unit);
+  const completeCard =
+    p.done === p.total && p.total > 0
+      ? `
+        <div class="unit-complete-card">
+          <h3>🏆 Unit Mastered</h3>
+          <p>You conquered ${escapeHtml(unit.title)}. On to the next climb.</p>
+        </div>`
+      : "";
+
+  container.innerHTML = `
+    <div class="chart-wrap">
+      <div class="chart-inner" style="width:${width}px;height:${height}px">
+        ${svg}
+        <div class="chart-nodes">${nodesHtml}</div>
+      </div>
+    </div>
+    ${completeCard}
+  `;
+
+  // Set unit accent color on nodes root
+  container.style.setProperty("--unit-accent", unit.color);
+
+  container.querySelectorAll(".chart-node").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.lesson;
       if (!isLessonUnlocked(id)) {
@@ -225,11 +370,20 @@ function renderLessonPath(unit) {
       openLesson(id);
     });
   });
+
+  // Auto-scroll horizontally to the current lesson so it's visible on big units.
+  const wrap = container.querySelector(".chart-wrap");
+  const currentBtn = container.querySelector(".chart-node.current, .chart-node.done + .chart-node.unlocked, .chart-node.unlocked");
+  if (wrap && currentBtn) {
+    const btnLeft = parseFloat(currentBtn.style.left) || 0;
+    const target = Math.max(0, btnLeft - wrap.clientWidth / 2 + 24);
+    wrap.scrollLeft = target;
+  }
 }
 
-function zigzagOffset(i, total) {
-  const cycle = i % 6;
-  return { 0: 0, 1: 1, 2: 2, 3: 1, 4: 0, 5: -1 }[cycle] ?? 0;
+function getUnitAccent() {
+  const u = CURRICULUM.units.find((u) => u.id === state.activeUnitId);
+  return u ? u.color : "#22c55e";
 }
 
 function isCurrent(lessonId) {
@@ -685,6 +839,21 @@ function boot() {
   const url = new URL(window.location.href);
   const forcedNW = parseInt(url.searchParams.get("networth"), 10);
   if (!isNaN(forcedNW)) state.networth = forcedNW;
+  const forcedUnit = url.searchParams.get("unit");
+  if (forcedUnit && CURRICULUM.units.some(u => u.id === forcedUnit)) {
+    state.activeUnitId = forcedUnit;
+  }
+  // ?demo=N marks the first N lessons of the curriculum complete (visual demo only).
+  const demoN = parseInt(url.searchParams.get("demo"), 10);
+  if (!isNaN(demoN) && demoN > 0) {
+    const all = flatLessonList();
+    let acc = 0;
+    for (let i = 0; i < Math.min(demoN, all.length); i++) {
+      state.completedLessons[all[i].id] = { completed: true, reward: all[i].reward, ts: Date.now() };
+      acc += all[i].reward;
+    }
+    state.networth = acc;
+  }
 
   // Default active unit = first with incomplete lessons, else first
   if (!state.activeUnitId) {

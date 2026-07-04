@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wealthy Owl · Master Money, Build Wealth</title>
+  <title>Denaro · Master Money, Build Wealth</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,8 +13,19 @@
   <!-- Top nav -->
   <header class="topbar">
     <div class="brand" id="brandHome">
-      <span class="brand-owl">🦉</span>
-      <span class="brand-name">Wealthy Owl</span>
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 34 34" width="34" height="34">
+          <defs>
+            <linearGradient id="brandGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%"  stop-color="#22c55e"/>
+              <stop offset="100%" stop-color="#facc15"/>
+            </linearGradient>
+          </defs>
+          <rect x="1" y="1" width="32" height="32" rx="10" fill="url(#brandGrad)"/>
+          <text x="17" y="24" text-anchor="middle" font-family="Nunito, sans-serif" font-weight="900" font-size="20" fill="#0a0e1a">D</text>
+        </svg>
+      </span>
+      <span class="brand-name">Denaro</span>
     </div>
     <nav class="top-stats">
       <div class="stat stat-streak" title="Day streak">
@@ -51,32 +62,42 @@
         <svg viewBox="0 0 200 500" preserveAspectRatio="none" class="mountain-svg">
           <defs>
             <linearGradient id="mountainGrad" x1="0" y1="1" x2="0" y2="0">
-              <stop offset="0%" stop-color="#4ac97a"/>
-              <stop offset="50%" stop-color="#3fb45f"/>
-              <stop offset="100%" stop-color="#2e8b45"/>
+              <stop offset="0%"   stop-color="#22c55e"/>
+              <stop offset="60%"  stop-color="#4ade80"/>
+              <stop offset="100%" stop-color="#facc15"/>
             </linearGradient>
             <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#87ceeb"/>
-              <stop offset="100%" stop-color="#d9f4ff"/>
+              <stop offset="0%"   stop-color="#0b1220"/>
+              <stop offset="100%" stop-color="#141a2b"/>
             </linearGradient>
+            <radialGradient id="starGrad" cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+            </radialGradient>
             <clipPath id="mountainClip">
               <polygon points="0,500 100,20 200,500" />
             </clipPath>
           </defs>
           <!-- Sky -->
           <rect x="0" y="0" width="200" height="500" fill="url(#skyGrad)"/>
-          <!-- Snow mountain outline -->
-          <polygon points="0,500 100,20 200,500" fill="#e6e6e6" stroke="#b8b8b8" stroke-width="1"/>
-          <!-- Fill (green) driven by JS: height 500 - level -->
+          <!-- Stars -->
+          <circle cx="30"  cy="60"  r="1.2" fill="#ffffff" opacity="0.7"/>
+          <circle cx="170" cy="40"  r="1"   fill="#ffffff" opacity="0.6"/>
+          <circle cx="150" cy="90"  r="0.9" fill="#ffffff" opacity="0.5"/>
+          <circle cx="45"  cy="120" r="0.8" fill="#ffffff" opacity="0.5"/>
+          <circle cx="180" cy="150" r="1.1" fill="#ffffff" opacity="0.7"/>
+          <circle cx="90"  cy="80"  r="0.7" fill="#ffffff" opacity="0.5"/>
+          <circle cx="20"  cy="200" r="0.9" fill="#ffffff" opacity="0.55"/>
+          <!-- Mountain silhouette -->
+          <polygon points="0,500 100,20 200,500" fill="#1a2033" stroke="#2e364b" stroke-width="1"/>
+          <!-- Fill driven by JS: height 500 - level -->
           <g clip-path="url(#mountainClip)">
             <rect id="mountainFill" x="0" y="500" width="200" height="0" fill="url(#mountainGrad)"/>
           </g>
-          <!-- Cap accent -->
-          <polygon points="70,120 100,20 130,120" fill="#ffffff" opacity="0.85"/>
           <!-- Climber -->
-          <text id="climber" x="100" y="490" text-anchor="middle" font-size="28">🧗</text>
+          <text id="climber" x="100" y="490" text-anchor="middle" font-size="26">🧗</text>
           <!-- Peak flag -->
-          <text x="100" y="18" text-anchor="middle" font-size="14">🚩</text>
+          <text x="100" y="16" text-anchor="middle" font-size="14">🚩</text>
         </svg>
         <div class="milestone-labels" id="milestoneLabels"></div>
       </div>
