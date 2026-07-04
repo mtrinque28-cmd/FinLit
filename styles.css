@@ -102,33 +102,10 @@ button { font-family: inherit; cursor: pointer; }
   -webkit-text-fill-color: transparent;
 }
 
-.top-stats {
+.top-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.stat {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 800;
-  font-size: 14px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: var(--bg-elev);
-  color: var(--ink);
-  border: 1px solid var(--border);
-}
-.stat-icon { font-size: 16px; }
-
-.stat-streak   { color: #ffb56b; }
-.stat-hearts   { color: var(--red); }
-.stat-networth {
-  background: linear-gradient(135deg, rgba(250, 204, 21, 0.14), rgba(34, 197, 94, 0.10));
-  border-color: rgba(250, 204, 21, 0.35);
-  color: var(--gold);
-  font-weight: 900;
 }
 
 .btn-reset {
@@ -152,18 +129,16 @@ button { font-family: inherit; cursor: pointer; }
 .app-main {
   flex: 1;
   display: grid;
-  grid-template-columns: 260px 1fr 300px;
+  grid-template-columns: 260px 1fr;
   min-height: 0;
 }
 
-.sidebar-left,
-.sidebar-right {
+.sidebar-left {
   overflow-y: auto;
   padding: 20px 14px;
   background: var(--bg-elev);
+  border-right: 1px solid var(--border);
 }
-.sidebar-left  { border-right: 1px solid var(--border); }
-.sidebar-right { border-left:  1px solid var(--border); }
 
 .content {
   overflow-y: auto;
@@ -254,10 +229,140 @@ button { font-family: inherit; cursor: pointer; }
    Center — unit banner + chart path
    ========================================================================== */
 
-.unit-banner {
+/* Sticky header wrapper containing climb strip + unit banner */
+.center-header {
   position: sticky;
   top: 0;
   z-index: 5;
+  background: var(--bg);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Climb to $1M strip --- */
+.climb-strip {
+  padding: 16px 28px 18px;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), transparent 80%),
+              var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.climb-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.climb-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.climb-eyebrow {
+  font-size: 11px;
+  letter-spacing: 1.8px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+}
+.climb-goal {
+  font-weight: 900;
+  font-size: 18px;
+  color: var(--gold);
+  letter-spacing: 0.4px;
+}
+.climb-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.climb-current {
+  font-weight: 900;
+  font-size: 22px;
+  background: linear-gradient(90deg, var(--green), var(--gold));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.3px;
+}
+.climb-pct {
+  color: var(--green);
+  font-weight: 900;
+  font-size: 14px;
+}
+.climb-sep { color: var(--muted); }
+
+.climb-rail {
+  position: relative;
+  padding-bottom: 30px;
+}
+.climb-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: visible;
+}
+.climb-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0%;
+  background: linear-gradient(90deg, var(--green), var(--gold));
+  border-radius: 999px;
+  box-shadow: 0 0 14px var(--green-glow);
+  transition: width 0.6s ease;
+}
+.climb-climber {
+  position: absolute;
+  top: 50%;
+  left: 0%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+  transition: left 0.6s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.climb-milestones {
+  position: absolute;
+  left: 0; right: 0; top: 12px;
+  height: 30px;
+}
+.climb-ms {
+  position: absolute;
+  top: -6px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+.climb-ms .ms-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-elev);
+  border: 2px solid var(--border-2);
+  margin: -13px auto 4px;
+  position: relative;
+  z-index: 2;
+}
+.climb-ms.hit .ms-dot {
+  background: var(--gold);
+  border-color: var(--gold);
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.5);
+}
+.climb-ms .ms-caption {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.climb-ms.hit .ms-caption { color: var(--gold); }
+.climb-ms .ms-caption .ms-emoji { margin-right: 3px; }
+
+.unit-banner {
   padding: 18px 28px;
   background: linear-gradient(135deg, var(--bg-elev), var(--bg-elev-2));
   border-bottom: 1px solid var(--border);
@@ -266,7 +371,7 @@ button { font-family: inherit; cursor: pointer; }
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  position: relative;
 }
 .unit-banner::after {
   content: "";
@@ -532,95 +637,6 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 900;
 }
 .unit-complete-card p { margin: 0; color: var(--ink-soft); font-weight: 700; }
-
-/* ==========================================================================
-   Right sidebar — Mountain / net worth (dark themed)
-   ========================================================================== */
-
-.chart-title {
-  font-weight: 900;
-  font-size: 13px;
-  text-align: center;
-  margin-bottom: 12px;
-  letter-spacing: 1.4px;
-  color: var(--ink-soft);
-  text-transform: uppercase;
-}
-.chart-title .gold { color: var(--gold); }
-
-.mountain {
-  position: relative;
-  height: 320px;
-  margin: 0 auto 16px;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: linear-gradient(180deg, #0e1524 0%, #131a2b 100%);
-  border: 1px solid var(--border);
-}
-.mountain-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-.milestone-labels {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.milestone {
-  position: absolute;
-  right: 6px;
-  transform: translateY(-50%);
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--ink);
-  background: rgba(19, 24, 36, 0.85);
-  padding: 2px 7px;
-  border-radius: 6px;
-  border: 1px solid var(--border-2);
-  white-space: nowrap;
-  backdrop-filter: blur(4px);
-}
-.milestone.hit {
-  background: linear-gradient(90deg, var(--gold), #fbbf24);
-  color: #2a1e00;
-  border-color: var(--gold);
-}
-.milestone .m-emoji { margin-right: 3px; }
-
-.networth-summary { text-align: center; padding: 4px 6px; }
-.networth-current {
-  font-size: 26px;
-  font-weight: 900;
-  background: linear-gradient(90deg, var(--green), var(--gold));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: 0.3px;
-}
-.networth-bar-wrap {
-  height: 10px;
-  background: var(--bg);
-  border-radius: 999px;
-  margin: 8px 0 4px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-.networth-bar {
-  height: 100%;
-  width: 0%;
-  background: linear-gradient(90deg, var(--green), var(--gold));
-  border-radius: 999px;
-  transition: width 0.6s ease;
-  box-shadow: 0 0 12px var(--green-glow);
-}
-.networth-goal { font-size: 11px; color: var(--ink-soft); font-weight: 700; }
-.lessons-done {
-  margin-top: 10px;
-  font-weight: 800;
-  color: var(--ink);
-  font-size: 12px;
-}
 
 /* ==========================================================================
    Lesson modal
@@ -924,12 +940,10 @@ button { font-family: inherit; cursor: pointer; }
    Scrollbar (subtle)
    ========================================================================== */
 .sidebar-left::-webkit-scrollbar,
-.sidebar-right::-webkit-scrollbar,
 .content::-webkit-scrollbar {
   width: 8px;
 }
 .sidebar-left::-webkit-scrollbar-thumb,
-.sidebar-right::-webkit-scrollbar-thumb,
 .content::-webkit-scrollbar-thumb {
   background: var(--border-2);
   border-radius: 4px;
@@ -939,9 +953,9 @@ button { font-family: inherit; cursor: pointer; }
    Responsive
    ========================================================================== */
 @media (max-width: 1100px) {
-  .app-main { grid-template-columns: 220px 1fr 260px; }
+  .app-main { grid-template-columns: 220px 1fr; }
 }
 @media (max-width: 900px) {
   .app-main { grid-template-columns: 1fr; }
-  .sidebar-left, .sidebar-right { display: none; }
+  .sidebar-left { display: none; }
 }

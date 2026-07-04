@@ -1,8 +1,8 @@
 /* ============================================================================
-   Wealthy Owl — App logic
+   Denaro — App logic
    ============================================================================ */
 
-const STORAGE_KEY = "wealthyOwl.progress.v1";
+const STORAGE_KEY = "denaro.progress.v1";
 
 // ---------------------------------------------------------------------------
 // State
@@ -10,8 +10,6 @@ const STORAGE_KEY = "wealthyOwl.progress.v1";
 
 const state = {
   networth: 0,
-  streak: 0,
-  hearts: 5,
   completedLessons: {},          // id -> { completed: true, reward, ts }
   activeUnitId: null,
   activeLessonId: null,
@@ -29,16 +27,17 @@ function loadProgress() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
     const saved = JSON.parse(raw);
-    Object.assign(state, saved);
+    if (typeof saved.networth === "number") state.networth = saved.networth;
+    if (saved.completedLessons) state.completedLessons = saved.completedLessons;
   } catch (e) {
     console.warn("Failed to load progress:", e);
   }
 }
 function saveProgress() {
-  const { networth, streak, hearts, completedLessons } = state;
+  const { networth, completedLessons } = state;
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ networth, streak, hearts, completedLessons })
+    JSON.stringify({ networth, completedLessons })
   );
 }
 
@@ -397,39 +396,53 @@ function isCurrent(lessonId) {
 }
 
 // ---------------------------------------------------------------------------
-// Rendering — Mountain / net worth
+// Rendering — Climb-to-$1M strip
 // ---------------------------------------------------------------------------
 
-function renderMountain() {
+/** Non-linear mapping so early milestones ($1k, $10k) are visible on the bar
+ *  without being crushed against the left edge by later huge rewards. */
+function climbRatio(v) {
   const goal = CURRICULUM.goal;
-  // Non-linear (sqrt) mapping so mid-values feel visible without early lessons
-  // being overwhelmed by later huge rewards.
-  const ratio = Math.min(1, Math.sqrt(state.networth / goal));
-  const fillHeight = ratio * 500; // out of 500 SVG units
+  if (v <= 0) return 0;
+  return Math.min(1, Math.sqrt(v / goal));
+}
 
-  const fill = document.getElementById("mountainFill");
-  fill.setAttribute("y", 500 - fillHeight);
-  fill.setAttribute("height", fillHeight);
-
-  const climber = document.getElementById("climber");
-  const climberY = 500 - fillHeight;
-  climber.setAttribute("y", Math.min(490, Math.max(30, climberY - 8)));
-
-  // Milestones
-  const labels = document.getElementById("milestoneLabels");
-  labels.innerHTML = CURRICULUM.milestones.map(m => {
-    const r = Math.min(1, Math.sqrt(m.value / goal));
-    const topPct = (1 - r) * 100;
-    const hit = state.networth >= m.value ? "hit" : "";
-    return `<div class="milestone ${hit}" style="top:${topPct}%"><span class="m-emoji">${m.emoji}</span>$${nice(m.value)}</div>`;
+function renderClimbStatic() {
+  // Milestone dots — rendered once on boot (no data dependency)
+  const milestones = document.getElementById("climbMilestones");
+  milestones.innerHTML = CURRICULUM.milestones.map((m) => {
+    const leftPct = (climbRatio(m.value) * 100).toFixed(2);
+    return `
+      <div class="climb-ms" data-value="${m.value}" style="left:${leftPct}%">
+        <div class="ms-dot"></div>
+        <div class="ms-caption"><span class="ms-emoji">${m.emoji}</span>$${nice(m.value)}</div>
+      </div>
+    `;
   }).join("");
+}
 
-  // Summary
-  document.getElementById("networthBig").textContent = state.networth.toLocaleString();
-  document.getElementById("networthVal").textContent = state.networth.toLocaleString();
-  const bar = document.getElementById("networthBar");
-  bar.style.width = (state.networth / goal * 100).toFixed(2) + "%";
+function updateClimb(networth) {
+  const goal = CURRICULUM.goal;
+  const pct = (climbRatio(networth) * 100);
+  const climbFill = document.getElementById("climbFill");
+  const climbClimber = document.getElementById("climbClimber");
+  climbFill.style.width = pct.toFixed(2) + "%";
+  climbClimber.style.left = pct.toFixed(2) + "%";
 
+  // Text
+  document.getElementById("climbCurrent").textContent = Math.round(networth).toLocaleString();
+  const realPct = Math.min(100, (networth / goal) * 100);
+  document.getElementById("climbPct").textContent = realPct < 10
+    ? realPct.toFixed(1)
+    : Math.round(realPct).toString();
+
+  // Milestone hit states
+  document.querySelectorAll(".climb-ms").forEach((el) => {
+    const v = parseFloat(el.dataset.value);
+    el.classList.toggle("hit", networth >= v);
+  });
+
+  // Lesson counters
   const totalLessons = flatLessonList().length;
   const done = Object.keys(state.completedLessons).length;
   document.getElementById("lessonsDone").textContent = done;
@@ -482,8 +495,6 @@ function renderQuestion() {
   const checkBtn = document.getElementById("checkBtn");
   const feedback = document.getElementById("feedback");
   const progressFill = document.getElementById("lessonProgressFill");
-  const heartsEl = document.getElementById("lessonHearts");
-  heartsEl.textContent = state.hearts;
 
   const questions = lesson.questions;
   const total = Math.max(questions.length, 1);
@@ -687,7 +698,7 @@ function finalizeLesson(success) {
   closeLesson(true);
   renderUnitNav();
   renderContent();
-  renderMountain();
+  updateClimb(state.networth);
 }
 
 // ---------------------------------------------------------------------------
@@ -698,28 +709,14 @@ let networthTween = null;
 function animateNetworth(from, to) {
   const start = performance.now();
   const duration = 900;
-  const netEl = document.getElementById("networthVal");
-  const netBig = document.getElementById("networthBig");
   cancelAnimationFrame(networthTween);
   function step(now) {
     const t = Math.min(1, (now - start) / duration);
     const eased = 1 - Math.pow(1 - t, 3);
-    const v = Math.round(from + (to - from) * eased);
-    netEl.textContent = v.toLocaleString();
-    netBig.textContent = v.toLocaleString();
-    // Also progressive fill
-    const goal = CURRICULUM.goal;
-    const ratio = Math.min(1, Math.sqrt(v / goal));
-    const fillHeight = ratio * 500;
-    const fill = document.getElementById("mountainFill");
-    fill.setAttribute("y", 500 - fillHeight);
-    fill.setAttribute("height", fillHeight);
-    const climber = document.getElementById("climber");
-    climber.setAttribute("y", Math.min(490, Math.max(30, 500 - fillHeight - 8)));
-    const bar = document.getElementById("networthBar");
-    bar.style.width = (v / goal * 100).toFixed(2) + "%";
+    const v = from + (to - from) * eased;
+    updateClimb(v);
     if (t < 1) networthTween = requestAnimationFrame(step);
-    else renderMountain(); // one last consistent render (milestone hit states, etc.)
+    else updateClimb(to);
   }
   networthTween = requestAnimationFrame(step);
 }
@@ -815,15 +812,11 @@ function shade(hex, percent) {
 function resetProgress() {
   if (!confirm("Reset all progress? Your net worth will drop to $0.")) return;
   state.networth = 0;
-  state.streak = 0;
-  state.hearts = 5;
   state.completedLessons = {};
   saveProgress();
-  document.getElementById("streakVal").textContent = state.streak;
-  document.getElementById("heartsVal").textContent = state.hearts;
   renderUnitNav();
   renderContent();
-  renderMountain();
+  updateClimb(state.networth);
   toast("Progress reset. Fresh start! 🌱");
 }
 
@@ -864,12 +857,10 @@ function boot() {
     state.activeUnitId = (firstIncomplete || CURRICULUM.units[0]).id;
   }
 
-  document.getElementById("streakVal").textContent = state.streak;
-  document.getElementById("heartsVal").textContent = state.hearts;
-
+  renderClimbStatic();
   renderUnitNav();
   renderContent();
-  renderMountain();
+  updateClimb(state.networth);
 
   document.getElementById("brandHome").addEventListener("click", () => {
     state.activeUnitId = CURRICULUM.units[0].id;
