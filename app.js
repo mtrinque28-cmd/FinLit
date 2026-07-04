@@ -5,6 +5,35 @@
 const STORAGE_KEY = "denaro.progress.v1";
 
 // ---------------------------------------------------------------------------
+// Icon set — minimal line SVGs (Lucide-style) keyed by unit id
+// ---------------------------------------------------------------------------
+
+const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
+
+const UNIT_ICONS = {
+  basics:     `<svg ${ICON_ATTRS}><path d="M15 14c.2-1 .7-1.7 1.5-2.5A6 6 0 1 0 7.5 11.5c.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>`,
+  budgeting:  `<svg ${ICON_ATTRS}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`,
+  banking:    `<svg ${ICON_ATTRS}><path d="M3 22h18"/><path d="M6 18V11"/><path d="M10 18V11"/><path d="M14 18V11"/><path d="M18 18V11"/><path d="M12 3 3 8v3h18V8z"/></svg>`,
+  credit:     `<svg ${ICON_ATTRS}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h2"/></svg>`,
+  investing:  `<svg ${ICON_ATTRS}><path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/></svg>`,
+  retirement: `<svg ${ICON_ATTRS}><path d="M12 3v18"/><path d="M5 8c0-3 3-5 7-5s7 2 7 5"/><path d="M8 21h8"/><path d="M6 14c1.5 1.5 4 1.5 6 0"/><path d="M12 14c1.5 1.5 4 1.5 6 0"/></svg>`,
+  taxes:      `<svg ${ICON_ATTRS}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>`,
+  insurance:  `<svg ${ICON_ATTRS}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+  realestate: `<svg ${ICON_ATTRS}><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>`,
+  advanced:   `<svg ${ICON_ATTRS}><path d="m2 20 20 0"/><path d="m2 20 3-12 5 6 4-8 4 8 5-6 3 12"/></svg>`,
+};
+
+function unitIconSvg(unitId) {
+  return UNIT_ICONS[unitId] ||
+    `<svg ${ICON_ATTRS}><circle cx="12" cy="12" r="8"/></svg>`;
+}
+
+const LOCK_SVG =
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`;
+const CHECK_SVG =
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>`;
+
+// ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
@@ -92,18 +121,18 @@ function isLessonCompleted(lessonId) {
 
 function renderUnitNav() {
   const nav = document.getElementById("unitNav");
-  const titleEl = `<div class="unit-nav-title">Your Journey</div>`;
+  const titleEl = `<div class="unit-nav-title">Curriculum</div>`;
   const items = CURRICULUM.units.map(u => {
     const p = unitProgress(u);
     const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
     const active = u.id === state.activeUnitId ? "active" : "";
     return `
       <div class="unit-nav-item ${active}" data-unit="${u.id}">
-        <div class="unit-nav-icon" style="background:${u.color}22;color:${u.color}">${u.icon}</div>
+        <div class="unit-nav-icon">${unitIconSvg(u.id)}</div>
         <div class="unit-nav-text">
-          <div class="unit-nav-title-line">${u.title}</div>
-          <div class="unit-nav-progress-line">${p.done}/${p.total} lessons · ${pct}%</div>
-          <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${u.color}"></div></div>
+          <div class="unit-nav-title-line">${escapeHtml(u.title)}</div>
+          <div class="unit-nav-progress-line">${p.done} of ${p.total} · ${pct}%</div>
+          <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%"></div></div>
         </div>
       </div>`;
   }).join("");
@@ -134,18 +163,27 @@ function renderUnitBanner(unit) {
   const el = document.getElementById("unitBanner");
   const p = unitProgress(unit);
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
-  el.style.setProperty("--unit-accent", unit.color);
   el.innerHTML = `
     <div class="banner-left">
-      <div class="banner-icon">${unit.icon}</div>
+      <div class="banner-icon">${unitIconSvg(unit.id)}</div>
       <div>
         <h2>${escapeHtml(unit.title)}</h2>
         <div class="banner-sub">${escapeHtml(unit.subtitle || "")}</div>
       </div>
     </div>
     <div class="banner-progress">
-      <div class="big">${pct}%</div>
-      <div>${p.done}/${p.total} lessons · $${p.earned.toLocaleString()} earned</div>
+      <div class="metric">
+        <span class="metric-label">Progress</span>
+        <span class="metric-value">${pct}%</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Lessons</span>
+        <span class="metric-value">${p.done} / ${p.total}</span>
+      </div>
+      <div class="metric">
+        <span class="metric-label">Earned</span>
+        <span class="metric-value">$${p.earned.toLocaleString()}</span>
+      </div>
     </div>
   `;
 }
@@ -275,30 +313,22 @@ function renderLessonChart(unit) {
     <svg class="chart-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"  stop-color="#22c55e" stop-opacity="0.35"/>
-          <stop offset="100%" stop-color="#22c55e" stop-opacity="0"/>
-        </linearGradient>
-        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"  stop-color="#22c55e"/>
-          <stop offset="100%" stop-color="#facc15"/>
-        </linearGradient>
-        <linearGradient id="doneLineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%"  stop-color="#22c55e"/>
-          <stop offset="100%" stop-color="#4ade80"/>
+          <stop offset="0%"  stop-color="#4ade80" stop-opacity="0.16"/>
+          <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
         </linearGradient>
       </defs>
 
       ${yTicksSvg}
       ${sectionsSvg}
 
-      <!-- projected (dim) area + line -->
-      <path d="${areaPath}" fill="url(#areaGrad)" opacity="0.35"/>
-      <path d="${linePath}" fill="none" stroke="url(#lineGrad)" stroke-width="2.5" stroke-dasharray="6 6" opacity="0.55" stroke-linejoin="round" stroke-linecap="round"/>
+      <!-- projected (dim) line -->
+      <path d="${linePath}" fill="none" stroke="#4ade80" stroke-opacity="0.28" stroke-width="1.5" stroke-dasharray="4 6" stroke-linejoin="round" stroke-linecap="round"/>
 
-      <!-- earned solid line (up to last completed) -->
+      <!-- earned solid area + line -->
       ${
         doneLinePath
-          ? `<path d="${doneLinePath}" fill="none" stroke="url(#doneLineGrad)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" style="filter: drop-shadow(0 0 12px rgba(34,197,94,0.5))"/>`
+          ? `<path d="${doneLinePath} L ${xAt(Math.max(0, doneCount - 1))} ${originY} L ${originX} ${originY} Z" fill="url(#areaGrad)"/>
+             <path d="${doneLinePath}" fill="none" stroke="#4ade80" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`
           : ""
       }
     </svg>
@@ -318,19 +348,17 @@ function renderLessonChart(unit) {
       const x = xAt(p.index);
       const y = yAt(p.cum);
       const labelY = padT + chartH + 24;
-      const cumChip = `<div class="chart-cum ${done ? "done" : ""}" style="left:${x}px;top:${y - 22}px">$${nice(p.cum)}</div>`;
-      const startBubble = current ? `<div class="start-bubble">START</div>` : "";
+      const cumCls = done ? "done" : current ? "current" : "";
+      const cumChip = `<div class="chart-cum ${cumCls}" style="left:${x}px;top:${y - 14}px">$${nice(p.cum)}</div>`;
 
-      const icon = done ? "" : unlocked ? escapeHtml(p.lesson.icon || "•") : "🔒";
       return `
         ${cumChip}
-        <button class="chart-node ${cls}" data-lesson="${p.lesson.id}" style="left:${x}px;top:${y}px;--unit-accent:${p.section && p.section.title ? getUnitAccent() : getUnitAccent()}">
-          ${startBubble}
-          <div class="chart-dot"><span>${icon}</span></div>
+        <button class="chart-node ${cls}" data-lesson="${p.lesson.id}" style="left:${x}px;top:${y}px" aria-label="${escapeHtml(p.lesson.title)}">
+          <div class="chart-dot"></div>
         </button>
         <div class="chart-label ${cls}" style="left:${x}px;top:${labelY}px">
           <div class="l-title">${escapeHtml(p.lesson.title)}</div>
-          <div class="l-reward">+$${p.lesson.reward.toLocaleString()}</div>
+          <div class="l-reward">$${p.lesson.reward.toLocaleString()}</div>
         </div>
       `;
     })
@@ -341,8 +369,8 @@ function renderLessonChart(unit) {
     p.done === p.total && p.total > 0
       ? `
         <div class="unit-complete-card">
-          <h3>🏆 Unit Mastered</h3>
-          <p>You conquered ${escapeHtml(unit.title)}. On to the next climb.</p>
+          <h3>Unit complete</h3>
+          <p>You finished ${escapeHtml(unit.title)}.</p>
         </div>`
       : "";
 
@@ -356,14 +384,11 @@ function renderLessonChart(unit) {
     ${completeCard}
   `;
 
-  // Set unit accent color on nodes root
-  container.style.setProperty("--unit-accent", unit.color);
-
   container.querySelectorAll(".chart-node").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.dataset.lesson;
       if (!isLessonUnlocked(id)) {
-        toast("Complete previous lessons to unlock 🔒");
+        toast("Complete previous lessons to unlock.");
         return;
       }
       openLesson(id);
@@ -378,11 +403,6 @@ function renderLessonChart(unit) {
     const target = Math.max(0, btnLeft - wrap.clientWidth / 2 + 24);
     wrap.scrollLeft = target;
   }
-}
-
-function getUnitAccent() {
-  const u = CURRICULUM.units.find((u) => u.id === state.activeUnitId);
-  return u ? u.color : "#22c55e";
 }
 
 function isCurrent(lessonId) {
@@ -415,7 +435,7 @@ function renderClimbStatic() {
     return `
       <div class="climb-ms" data-value="${m.value}" style="left:${leftPct}%">
         <div class="ms-dot"></div>
-        <div class="ms-caption"><span class="ms-emoji">${m.emoji}</span>$${nice(m.value)}</div>
+        <div class="ms-caption">$${nice(m.value)}</div>
       </div>
     `;
   }).join("");
@@ -425,9 +445,9 @@ function updateClimb(networth) {
   const goal = CURRICULUM.goal;
   const pct = (climbRatio(networth) * 100);
   const climbFill = document.getElementById("climbFill");
-  const climbClimber = document.getElementById("climbClimber");
+  const climbMarker = document.getElementById("climbMarker");
   climbFill.style.width = pct.toFixed(2) + "%";
-  climbClimber.style.left = pct.toFixed(2) + "%";
+  climbMarker.style.left = pct.toFixed(2) + "%";
 
   // Text
   document.getElementById("climbCurrent").textContent = Math.round(networth).toLocaleString();
@@ -504,8 +524,8 @@ function renderQuestion() {
   feedback.innerHTML = "";
   footer.className = "lesson-footer";
   checkBtn.disabled = true;
-  checkBtn.textContent = "CHECK";
-  checkBtn.classList.remove("wrong-mode");
+  checkBtn.textContent = "Check";
+  checkBtn.classList.remove("danger");
 
   progressFill.style.width = ((state.activeQuestionIdx) / total * 100) + "%";
 
@@ -513,12 +533,12 @@ function renderQuestion() {
   if (!questions || questions.length === 0) {
     body.innerHTML = `
       <div class="lesson-complete">
-        <div class="lc-badge">${lesson.icon}</div>
+        <div class="lc-check">${CHECK_SVG}</div>
         <h2 class="lc-title">${escapeHtml(lesson.title)}</h2>
-        <p class="lc-sub" style="max-width:420px">This lesson is coming soon. Tap continue to claim your reward and keep climbing the chart. 🧗</p>
+        <p class="lc-sub" style="max-width:440px">Content for this lesson is in progress. Claim the reward to continue your journey.</p>
       </div>
     `;
-    checkBtn.textContent = "CLAIM +$" + lesson.reward.toLocaleString();
+    checkBtn.textContent = "Claim $" + lesson.reward.toLocaleString();
     checkBtn.disabled = false;
     feedback.innerHTML = "";
     checkBtn.onclick = () => {
@@ -607,21 +627,19 @@ function handleMCCheck(q) {
     state.activeCorrectCount++;
     feedback.className = "feedback correct";
     feedback.innerHTML = `
-      <span class="fb-title">✅ Nice work!</span>
-      <span class="fb-body">${escapeHtml(q.explanation || "Correct.")}</span>
+      <span class="fb-title">Correct</span>
+      <span class="fb-body">${escapeHtml(q.explanation || "")}</span>
     `;
-    footer.className = "lesson-footer correct-mode";
-    checkBtn.classList.remove("wrong-mode");
-    checkBtn.textContent = "CONTINUE";
+    checkBtn.classList.remove("danger");
+    checkBtn.textContent = "Continue";
   } else {
     feedback.className = "feedback wrong";
     feedback.innerHTML = `
-      <span class="fb-title">❌ Not quite</span>
-      <span class="fb-body">${escapeHtml(q.explanation || "Give it another go.")}</span>
+      <span class="fb-title">Incorrect</span>
+      <span class="fb-body">${escapeHtml(q.explanation || "")}</span>
     `;
-    footer.className = "lesson-footer wrong-mode";
-    checkBtn.classList.add("wrong-mode");
-    checkBtn.textContent = "CONTINUE";
+    checkBtn.classList.add("danger");
+    checkBtn.textContent = "Continue";
   }
 }
 
@@ -641,12 +659,12 @@ function showLessonComplete() {
 
   body.innerHTML = `
     <div class="lesson-complete">
-      <div class="lc-badge">🎉</div>
-      <h2 class="lc-title">Lesson Complete!</h2>
-      <p class="lc-sub">${escapeHtml(lesson.title)} · ${escapeHtml(found.unit.title)}</p>
+      <div class="lc-check">${CHECK_SVG}</div>
+      <h2 class="lc-title">Lesson complete</h2>
+      <p class="lc-sub">${escapeHtml(found.unit.title)} — ${escapeHtml(lesson.title)}</p>
       <div class="lc-cards">
         <div class="lc-card reward">
-          <div class="lc-label">Net Worth</div>
+          <div class="lc-label">Net worth gain</div>
           <div class="lc-value">+$${lesson.reward.toLocaleString()}</div>
         </div>
         <div class="lc-card accuracy">
@@ -658,9 +676,9 @@ function showLessonComplete() {
   `;
   feedback.innerHTML = "";
   feedback.className = "feedback";
-  footer.className = "lesson-footer correct-mode";
-  checkBtn.classList.remove("wrong-mode");
-  checkBtn.textContent = "CLAIM +$" + lesson.reward.toLocaleString();
+  footer.className = "lesson-footer";
+  checkBtn.classList.remove("danger");
+  checkBtn.textContent = "Claim $" + lesson.reward.toLocaleString();
   checkBtn.disabled = false;
   checkBtn.onclick = () => finalizeLesson(true);
 }
@@ -682,16 +700,14 @@ function finalizeLesson(success) {
     animateNetworth(before, state.networth);
     saveProgress();
 
-    // Check milestones for confetti
+    // Milestone crossings — quiet toast
     for (const m of CURRICULUM.milestones) {
       if (before < m.value && state.networth >= m.value) {
-        confettiBurst();
-        toast(`${m.emoji} Milestone unlocked: ${m.label} · $${m.value.toLocaleString()}`);
+        toast(`Milestone reached: $${m.value.toLocaleString()}`);
       }
     }
   } else if (success && alreadyDone) {
-    // Re-doing a completed lesson — no double reward
-    toast("You've already earned this lesson's reward.");
+    toast("Lesson already claimed.");
   }
 
   // Close modal, re-render tree
@@ -702,7 +718,7 @@ function finalizeLesson(success) {
 }
 
 // ---------------------------------------------------------------------------
-// Networth animation + confetti + toast
+// Networth animation + toast
 // ---------------------------------------------------------------------------
 
 let networthTween = null;
@@ -726,56 +742,7 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.remove("hidden");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => el.classList.add("hidden"), 2600);
-}
-
-function confettiBurst() {
-  const canvas = document.getElementById("confettiCanvas");
-  const ctx = canvas.getContext("2d");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const colors = ["#58cc02", "#1cb0f6", "#ff9600", "#ce82ff", "#ffc800", "#ff4b4b"];
-  const N = 140;
-  const parts = [];
-  for (let i = 0; i < N; i++) {
-    parts.push({
-      x: canvas.width / 2 + (Math.random() - 0.5) * 60,
-      y: canvas.height / 2,
-      vx: (Math.random() - 0.5) * 12,
-      vy: (Math.random() - 1) * 12 - 4,
-      g: 0.4 + Math.random() * 0.2,
-      size: 6 + Math.random() * 6,
-      rot: Math.random() * Math.PI * 2,
-      vr: (Math.random() - 0.5) * 0.3,
-      color: colors[(Math.random() * colors.length) | 0],
-      life: 0,
-    });
-  }
-  let running = true;
-  function frame() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let alive = 0;
-    for (const p of parts) {
-      p.vy += p.g;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.rot += p.vr;
-      p.life++;
-      if (p.y < canvas.height + 20 && p.life < 200) {
-        alive++;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        ctx.rotate(p.rot);
-        ctx.fillStyle = p.color;
-        ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
-        ctx.restore();
-      }
-    }
-    if (alive && running) requestAnimationFrame(frame);
-    else ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-  frame();
-  setTimeout(() => (running = false), 2500);
+  toast._t = setTimeout(() => el.classList.add("hidden"), 2400);
 }
 
 // ---------------------------------------------------------------------------
@@ -791,20 +758,6 @@ function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-/** Lighten/darken a hex color by percent (-100 .. 100). */
-function shade(hex, percent) {
-  const c = hex.replace("#", "");
-  const num = parseInt(c.length === 3 ? c.split("").map(x => x + x).join("") : c, 16);
-  let r = (num >> 16) & 0xff;
-  let g = (num >> 8) & 0xff;
-  let b = num & 0xff;
-  const p = percent / 100;
-  r = Math.max(0, Math.min(255, Math.round(r + (p < 0 ? r : 255 - r) * p)));
-  g = Math.max(0, Math.min(255, Math.round(g + (p < 0 ? g : 255 - g) * p)));
-  b = Math.max(0, Math.min(255, Math.round(b + (p < 0 ? b : 255 - b) * p)));
-  return "#" + [r, g, b].map(x => x.toString(16).padStart(2, "0")).join("");
-}
-
 // ---------------------------------------------------------------------------
 // Reset
 // ---------------------------------------------------------------------------
@@ -817,7 +770,7 @@ function resetProgress() {
   renderUnitNav();
   renderContent();
   updateClimb(state.networth);
-  toast("Progress reset. Fresh start! 🌱");
+  toast("Progress reset.");
 }
 
 // ---------------------------------------------------------------------------
